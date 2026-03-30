@@ -405,8 +405,8 @@ let selectedRoundIndex = 0;
         </div>`;
     }).join('');
 
-    // Special awards running totals
-    const awardGrid = 'grid-template-columns: 1fr 80px 80px 80px;';
+    // On-Course Competitions running totals
+    const awardGrid = 'grid-template-columns: 1fr 60px 60px 60px 60px;';
     const allPlayers = allSeasonData['2026'].players;
     const awardRows = allPlayers
       .map(p => ({
@@ -417,13 +417,17 @@ let selectedRoundIndex = 0;
       }))
       .filter(p => p.ldWins + p.npWins + p.np2Wins > 0)
       .sort((a, b) => (b.ldWins + b.npWins + b.np2Wins) - (a.ldWins + a.npWins + a.np2Wins))
-      .map(p => `
+      .map(p => {
+        const total = p.ldWins + p.npWins + p.np2Wins;
+        return `
         <div class="table-row no-hover" style="${awardGrid}">
           <span style="font-weight:600">${escHtml(p.name)}</span>
           <span class="center" style="color:var(--green-mid);font-weight:600">${p.ldWins  || '—'}</span>
           <span class="center" style="color:var(--green-mid);font-weight:600">${p.npWins  || '—'}</span>
           <span class="center" style="color:var(--green-mid);font-weight:600">${p.np2Wins || '—'}</span>
-        </div>`).join('');
+          <span class="center" style="font-weight:700;color:var(--text)">${total}</span>
+        </div>`;
+      }).join('');
 
     const awardsTable = awardRows ? `
       <div style="margin-top:24px">
@@ -434,6 +438,7 @@ let selectedRoundIndex = 0;
             <span class="center">LD</span>
             <span class="center">NP</span>
             <span class="center">NP2</span>
+            <span class="center">Total</span>
           </div>
           ${awardRows}
         </div>
@@ -566,9 +571,9 @@ let selectedRoundIndex = 0;
     const roundLabel = round.course + (round.date ? ` · ${round.date}` : '');
 
     const awards = [
-      round.ld  ? `<div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;font-weight:600;color:var(--muted);width:32px">LD</span><span style="font-weight:600">${escHtml(round.ld)}</span></div>` : '',
-      round.np  ? `<div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;font-weight:600;color:var(--muted);width:32px">NP</span><span style="font-weight:600">${escHtml(round.np)}</span></div>` : '',
-      round.np2 ? `<div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;font-weight:600;color:var(--muted);width:32px">NP2</span><span style="font-weight:600">${escHtml(round.np2)}</span></div>` : '',
+      round.ld  ? `<div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;font-weight:600;color:var(--muted);min-width:140px">Long Drive</span><span style="font-weight:600">${escHtml(round.ld)}</span></div>` : '',
+      round.np  ? `<div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;font-weight:600;color:var(--muted);min-width:140px">Nearest The Pin</span><span style="font-weight:600">${escHtml(round.np)}</span></div>` : '',
+      round.np2 ? `<div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;font-weight:600;color:var(--muted);min-width:140px">Nearest The Pin In 2</span><span style="font-weight:600">${escHtml(round.np2)}</span></div>` : '',
     ].filter(Boolean).join('');
 
     const awardsSection = awards ? `
