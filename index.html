@@ -393,11 +393,10 @@ let selectedRoundIndex = 0;
     const rows = ranked.map(({ name, totalScore, rounds, position, medalRank }) => {
       const roundsPlayed = rounds.filter(r => r.played).length;
       const medalClass   = getMedalClass(medalRank);
-      const medal        = getMedalEmoji(position);
-      const isMedal      = medalRank <= 3;
-      const posDisplay   = isMedal
-        ? `<span style="font-size:22px">${medal}</span>`
-        : `<span style="font-weight:700;color:var(--muted);font-size:16px;padding-left:4px">${medal}</span>`;
+      const isMedal    = medalRank <= 3;
+      const posDisplay = isMedal
+        ? `<span style="font-size:22px">${getMedalEmoji(medalRank)}</span>`
+        : `<span style="font-weight:700;color:var(--muted);font-size:16px;padding-left:4px">${position}</span>`;
 
       return `
         <div class="table-row ${medalClass}" style="${grid}" data-player="${escHtml(name)}" onclick="openPlayer(this.dataset.player)">
