@@ -288,11 +288,10 @@
       const playerRounds = rounds.map((round, i) => {
         const base      = 2 + i * 4;
         const handicap  = parseInt(row[base]     || '0', 10) || 0;
-        const available = (row[base + 1] || '').trim().toUpperCase() === 'Y';
         const scoreRaw  = (row[base + 3] || '').trim();
         const parsed    = parseInt(scoreRaw, 10);
         const score     = scoreRaw !== '' && !isNaN(parsed) ? parsed : null;
-        const played    = available && score !== null;
+        const played    = score !== null;
         return { course: round.course, date: round.date, handicap, played, score };
       });
 
