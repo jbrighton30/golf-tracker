@@ -384,41 +384,70 @@ let selectedRoundIndex = 0;
       return { ...player, position };
     });
 
-    const grid = 'grid-template-columns: 40px 1fr 60px 40px 40px 40px;';
+    const grid = 'grid-template-columns: 48px 1fr 80px 80px;';
     const allRounds = allSeasonData['2026'].rounds;
 
-    const rows = ranked.map(({ name, totalScore, position }) => {
-      const ldWins  = allRounds.filter(r => r.ld  === name).length;
-      const npWins  = allRounds.filter(r => r.np  === name).length;
-      const np2Wins = allRounds.filter(r => r.np2 === name).length;
-      const medalClass = getMedalClass(position);
-      const medal      = getMedalEmoji(position);
-      const isMedal    = position <= 3;
-      const posDisplay = isMedal
+    const rows = ranked.map(({ name, totalScore, rounds, position }) => {
+      const roundsPlayed = rounds.filter(r => r.played).length;
+      const medalClass   = getMedalClass(position);
+      const medal        = getMedalEmoji(position);
+      const isMedal      = position <= 3;
+      const posDisplay   = isMedal
         ? `<span style="font-size:22px">${medal}</span>`
         : `<span style="font-weight:700;color:var(--muted);font-size:16px;padding-left:4px">${medal}</span>`;
-      const winCell = n => n > 0
-        ? `<span class="center" style="font-weight:600;color:var(--green-mid)">${n}</span>`
-        : `<span class="center" style="color:#ccc">—</span>`;
 
       return `
         <div class="table-row ${medalClass}" style="${grid}" data-player="${escHtml(name)}" onclick="openPlayer(this.dataset.player)">
           ${posDisplay}
           <span style="font-weight:600">${escHtml(name)}</span>
+          <span class="center" style="color:var(--muted);font-size:13px">${roundsPlayed}</span>
           <span class="score" style="font-size:17px">${totalScore}</span>
-          ${winCell(ldWins)}${winCell(npWins)}${winCell(np2Wins)}
         </div>`;
     }).join('');
+
+    // Special awards running totals
+    const awardGrid = 'grid-template-columns: 1fr 80px 80px 80px;';
+    const allPlayers = allSeasonData['2026'].players;
+    const awardRows = allPlayers
+      .map(p => ({
+        name:    p.name,
+        ldWins:  allRounds.filter(r => r.ld  === p.name).length,
+        npWins:  allRounds.filter(r => r.np  === p.name).length,
+        np2Wins: allRounds.filter(r => r.np2 === p.name).length,
+      }))
+      .filter(p => p.ldWins + p.npWins + p.np2Wins > 0)
+      .sort((a, b) => (b.ldWins + b.npWins + b.np2Wins) - (a.ldWins + a.npWins + a.np2Wins))
+      .map(p => `
+        <div class="table-row no-hover" style="${awardGrid}">
+          <span style="font-weight:600">${escHtml(p.name)}</span>
+          <span class="center" style="color:var(--green-mid);font-weight:600">${p.ldWins  || '—'}</span>
+          <span class="center" style="color:var(--green-mid);font-weight:600">${p.npWins  || '—'}</span>
+          <span class="center" style="color:var(--green-mid);font-weight:600">${p.np2Wins || '—'}</span>
+        </div>`).join('');
+
+    const awardsTable = awardRows ? `
+      <div style="margin-top:24px">
+        <div class="section-title" style="margin-bottom:8px">Special Awards</div>
+        <div class="table-wrap" style="margin-top:0">
+          <div class="table-head" style="${awardGrid}">
+            <span>Player</span>
+            <span class="center">LD</span>
+            <span class="center">NP</span>
+            <span class="center">NP2</span>
+          </div>
+          ${awardRows}
+        </div>
+      </div>` : '';
 
     el.innerHTML = `
       <div class="table-wrap">
         <div class="table-head" style="${grid}">
           <span>Pos</span><span>Player</span>
-          <span class="right">Pts</span>
-          <span class="center">LD</span><span class="center">NP</span><span class="center">NP2</span>
+          <span class="center">Rounds</span><span class="right">Points</span>
         </div>
         ${rows || '<div style="padding:20px;text-align:center;color:var(--muted)">No scores yet</div>'}
-      </div>`;
+      </div>
+      ${awardsTable}`;
   }
 
   // ── Player Profile Rendering ──────────────────────────────────────────────
