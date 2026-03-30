@@ -272,30 +272,41 @@ let selectedRoundIndex = 0;
       const course = (courseRow[col] || '').trim();
       const date   = (dateRow[col]   || '').trim();
       if (!course && !date) break;  // no more rounds
-      rounds.push({ course: course || date, date: course ? date : '' });
+      rounds.push({ course: course || date, date: course ? date : '', ld: null, np: null, np2: null });
       col += 4;
     }
 
-    // Parse player rows (row index 3 onwards)
+    // Parse player rows (row 3+) and award rows (LD/NP/NP2)
     const players = [];
     for (let r = 3; r < rows.length; r++) {
       const row  = rows[r];
       const name = (row[0] || '').trim();
-      if (!name) continue;
 
-      const totalScore = parseInt(row[1], 10) || 0;
-
-      const playerRounds = rounds.map((round, i) => {
-        const base      = 2 + i * 4;
-        const handicap  = parseInt(row[base]     || '0', 10) || 0;
-        const scoreRaw  = (row[base + 3] || '').trim();
-        const parsed    = parseInt(scoreRaw, 10);
-        const score     = scoreRaw !== '' && !isNaN(parsed) ? parsed : null;
-        const played    = score !== null;
-        return { course: round.course, date: round.date, handicap, played, score };
-      });
-
-      players.push({ name, totalScore, rounds: playerRounds });
+      if (name) {
+        // Player row
+        const totalScore = parseInt(row[1], 10) || 0;
+        const playerRounds = rounds.map((round, i) => {
+          const base     = 2 + i * 4;
+          const handicap = parseInt(row[base] || '0', 10) || 0;
+          const scoreRaw = (row[base + 3] || '').trim();
+          const parsed   = parseInt(scoreRaw, 10);
+          const score    = scoreRaw !== '' && !isNaN(parsed) ? parsed : null;
+          const played   = score !== null;
+          return { course: round.course, date: round.date, handicap, played, score };
+        });
+        players.push({ name, totalScore, rounds: playerRounds });
+      } else {
+        // Check for LD/NP/NP2 award rows (label appears at col 2 = base for round 0)
+        const label = (row[2] || '').trim().toUpperCase();
+        if (label === 'LD' || label === 'NP' || label === 'NP2') {
+          rounds.forEach((round, i) => {
+            const winner = (row[2 + i * 4 + 1] || '').trim() || null;
+            if      (label === 'LD')  round.ld  = winner;
+            else if (label === 'NP')  round.np  = winner;
+            else if (label === 'NP2') round.np2 = winner;
+          });
+        }
+      }
     }
 
     return { rounds, players };
@@ -373,23 +384,29 @@ let selectedRoundIndex = 0;
       return { ...player, position };
     });
 
-    const grid = 'grid-template-columns: 48px 1fr 80px 80px;';
+    const grid = 'grid-template-columns: 40px 1fr 60px 40px 40px 40px;';
+    const allRounds = allSeasonData['2026'].rounds;
 
-    const rows = ranked.map(({ name, totalScore, rounds, position }) => {
-      const roundsPlayed = rounds.filter(r => r.played).length;
-      const medalClass   = getMedalClass(position);
-      const medal        = getMedalEmoji(position);
-      const isMedal      = position <= 3;
-      const posDisplay   = isMedal
+    const rows = ranked.map(({ name, totalScore, position }) => {
+      const ldWins  = allRounds.filter(r => r.ld  === name).length;
+      const npWins  = allRounds.filter(r => r.np  === name).length;
+      const np2Wins = allRounds.filter(r => r.np2 === name).length;
+      const medalClass = getMedalClass(position);
+      const medal      = getMedalEmoji(position);
+      const isMedal    = position <= 3;
+      const posDisplay = isMedal
         ? `<span style="font-size:22px">${medal}</span>`
         : `<span style="font-weight:700;color:var(--muted);font-size:16px;padding-left:4px">${medal}</span>`;
+      const winCell = n => n > 0
+        ? `<span class="center" style="font-weight:600;color:var(--green-mid)">${n}</span>`
+        : `<span class="center" style="color:#ccc">—</span>`;
 
       return `
         <div class="table-row ${medalClass}" style="${grid}" data-player="${escHtml(name)}" onclick="openPlayer(this.dataset.player)">
           ${posDisplay}
           <span style="font-weight:600">${escHtml(name)}</span>
-          <span class="center" style="color:var(--muted);font-size:13px">${roundsPlayed}</span>
           <span class="score" style="font-size:17px">${totalScore}</span>
+          ${winCell(ldWins)}${winCell(npWins)}${winCell(np2Wins)}
         </div>`;
     }).join('');
 
@@ -397,7 +414,8 @@ let selectedRoundIndex = 0;
       <div class="table-wrap">
         <div class="table-head" style="${grid}">
           <span>Pos</span><span>Player</span>
-          <span class="center">Rounds</span><span class="right">Points</span>
+          <span class="right">Pts</span>
+          <span class="center">LD</span><span class="center">NP</span><span class="center">NP2</span>
         </div>
         ${rows || '<div style="padding:20px;text-align:center;color:var(--muted)">No scores yet</div>'}
       </div>`;
@@ -518,6 +536,18 @@ let selectedRoundIndex = 0;
 
     const roundLabel = round.course + (round.date ? ` · ${round.date}` : '');
 
+    const awards = [
+      round.ld  ? `<div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;font-weight:600;color:var(--muted);width:32px">LD</span><span style="font-weight:600">${escHtml(round.ld)}</span></div>` : '',
+      round.np  ? `<div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;font-weight:600;color:var(--muted);width:32px">NP</span><span style="font-weight:600">${escHtml(round.np)}</span></div>` : '',
+      round.np2 ? `<div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;font-weight:600;color:var(--muted);width:32px">NP2</span><span style="font-weight:600">${escHtml(round.np2)}</span></div>` : '',
+    ].filter(Boolean).join('');
+
+    const awardsSection = awards ? `
+      <div style="background:white;border-radius:8px;border:1px solid var(--border);margin-top:16px;padding:14px 16px">
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:10px">Special Awards</div>
+        <div style="display:flex;flex-direction:column;gap:8px">${awards}</div>
+      </div>` : '';
+
     el.innerHTML = `
       <div class="pills">${pills}</div>
       <div class="section-title">${escHtml(roundLabel)}</div>
@@ -528,7 +558,8 @@ let selectedRoundIndex = 0;
           <span class="right">Score</span>
         </div>
         ${scoreRows || '<div style="padding:20px;text-align:center;color:var(--muted)">No scores recorded</div>'}
-      </div>`;
+      </div>
+      ${awardsSection}`;
   }
 
   // ── Players List Rendering ────────────────────────────────────────────────
