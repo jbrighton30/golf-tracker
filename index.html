@@ -576,7 +576,7 @@ let selectedRoundIndex = 0;
     const roundLabel = round.course + (round.date ? ` · ${round.date}` : '');
 
     const awards = [
-      round.ld  ? `<div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;font-weight:600;color:var(--muted);min-width:140px">Long Drive</span><span style="font-weight:600">${escHtml(round.ld)}</span></div>` : '',
+      round.ld  ? `<div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;font-weight:600;color:var(--muted);min-width:140px">Longest Drive</span><span style="font-weight:600">${escHtml(round.ld)}</span></div>` : '',
       round.np  ? `<div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;font-weight:600;color:var(--muted);min-width:140px">Nearest The Pin</span><span style="font-weight:600">${escHtml(round.np)}</span></div>` : '',
       round.np2 ? `<div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;font-weight:600;color:var(--muted);min-width:140px">Nearest The Pin In 2</span><span style="font-weight:600">${escHtml(round.np2)}</span></div>` : '',
     ].filter(Boolean).join('');
