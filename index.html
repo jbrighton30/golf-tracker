@@ -205,8 +205,8 @@
 
 <nav>
   <button class="active" onclick="showView('leaderboard')">🏆 Leaderboard</button>
+  <button onclick="showView('courses')">⛳ Rounds</button>
   <button onclick="showView('players')">👤 Players</button>
-  <button onclick="showView('courses')">⛳ Courses</button>
 </nav>
 
 <main>
@@ -645,7 +645,7 @@ let selectedRoundIndex = 0;
     // Update nav buttons (leaderboard=0, players=1, courses=2)
     // Player profile is a sub-view of Players
     document.querySelectorAll('nav button').forEach((btn, i) => {
-      const views = ['leaderboard', 'players', 'courses'];
+      const views = ['leaderboard', 'courses', 'players'];
       btn.classList.toggle('active', views[i] === name || (name === 'player' && views[i] === 'players'));
     });
 
