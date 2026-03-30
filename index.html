@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Golf Tracker</title>
+  <style>
+    :root {
+      --green-dark: #1a3a2a;
+      --green-mid: #2d6a4f;
+      --green-light: #f0f7f3;
+      --gold: #d4a017;
+      --gold-bg: #fffbea;
+      --silver: #aaaaaa;
+      --silver-bg: #f8f8f8;
+      --bronze: #cd7f32;
+      --bronze-bg: #fff8f3;
+      --text: #222;
+      --muted: #888;
+      --border: #eee;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--text);
+      background: #f5f5f5;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--green-dark);
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header h1 { font-size: 20px; font-weight: 700; }
+    header p  { font-size: 13px; color: #a8d5b5; }
+
+    nav {
+      background: white;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 0;
+    }
+
+    nav button {
+      flex: 1;
+      padding: 12px 8px;
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    nav button.active {
+      color: var(--green-mid);
+      border-bottom-color: var(--green-mid);
+    }
+
+    main { max-width: 700px; margin: 0 auto; padding: 20px 16px; }
+
+    /* Loading / error states */
+    #loading, #error {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    #error { color: #c0392b; }
+
+    /* Views */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* Table shared styles */
+    .table-wrap {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin-top: 16px;
+    }
+
+    .table-head {
+      background: var(--green-dark);
+      color: #a8d5b5;
+      display: grid;
+      padding: 10px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .table-row {
+      display: grid;
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+      font-size: 14px;
+    }
+
+    .table-row:last-child { border-bottom: none; }
+    .table-row:hover { background: var(--green-light); cursor: pointer; }
+    .table-row.no-hover:hover { background: none; cursor: default; }
+
+    .score  { font-weight: 700; color: var(--green-mid); text-align: right; }
+    .dns    { color: #bbb; font-style: italic; text-align: right; }
+    .center { text-align: center; }
+    .right  { text-align: right; }
+
+    /* Leaderboard medals */
+    .row-gold   { background: var(--gold-bg);   border-left: 4px solid var(--gold); }
+    .row-silver { background: var(--silver-bg); border-left: 4px solid var(--silver); }
+    .row-bronze { background: var(--bronze-bg); border-left: 4px solid var(--bronze); }
+    .row-gold:hover   { background: #fff5cc; }
+    .row-silver:hover { background: #eeeeee; }
+    .row-bronze:hover { background: #ffeedd; }
+
+    /* Player profile stat cards */
+    .stat-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+
+    .stat-card .value { font-size: 28px; font-weight: 700; color: var(--green-mid); }
+    .stat-card .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* Course pills */
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .pill {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: #eee;
+      color: #555;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .pill.active { background: var(--green-mid); color: white; }
+
+    /* Back button */
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: none;
+      color: var(--green-mid);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    @media (max-width: 480px) {
+      .stat-cards { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .stat-card .value { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>⛳ Golf Tracker</h1>
+    <p>2026 Season</p>
+  </div>
+</header>
+
+<nav>
+  <button class="active" onclick="showView('leaderboard')">🏆 Leaderboard</button>
+  <button onclick="showView('courses')">⛳ Courses</button>
+</nav>
+
+<main>
+  <div id="loading">Loading scores…</div>
+  <div id="error" style="display:none"></div>
+
+  <div id="view-leaderboard" class="view"></div>
+  <div id="view-player"      class="view"></div>
+  <div id="view-courses"     class="view"></div>
+</main>
+
+<script>
+  // CONFIG — replace these before deploying
+  const SHEET_ID = 'YOUR_SHEET_ID_HERE';
+  const API_KEY  = 'YOUR_API_KEY_HERE';
+  const SEASON_TAB = '2026 season';
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let sheetData = null;   // parsed data (set after fetch)
+  let currentView = 'leaderboard';
+  let selectedPlayer = null;
+  let selectedRoundIndex = 0;
+
+  // ── HTML Escaping Helper ────────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Data Parsing ──────────────────────────────────────────────────────────
+  /**
+   * parseSheetData(rows)
+   *
+   * rows: 2D array from Sheets API (row 0 = course names, row 1 = dates,
+   *       row 2 = column headers, rows 3+ = player data)
+   *
+   * Returns:
+   * {
+   *   rounds: [{ course: string, date: string }],
+   *   players: [{
+   *     name: string,
+   *     totalScore: number,
+   *     rounds: [{ course, date, handicap, played, score }]
+   *   }]
+   * }
+   */
+  function parseSheetData(rows) {
+    if (!rows || rows.length < 4) return { rounds: [], players: [] };
+
+    const courseRow = rows[0];  // row 1 in sheet (0-indexed)
+    const dateRow   = rows[1];  // row 2 in sheet
+    // rows[2] = column headers (unused — we use positional logic)
+
+    // Build round index: every 4 columns starting at col 2
+    const rounds = [];
+    let col = 2;
+    while (col < (courseRow.length || 50)) {
+      const course = (courseRow[col] || '').trim();
+      const date   = (dateRow[col]   || '').trim();
+      if (!course && !date) break;  // no more rounds
+      rounds.push({ course: course || date, date: course ? date : '' });
+      col += 4;
+    }
+
+    // Parse player rows (row index 3 onwards)
+    const players = [];
+    for (let r = 3; r < rows.length; r++) {
+      const row  = rows[r];
+      const name = (row[0] || '').trim();
+      if (!name) continue;
+
+      const totalScore = parseInt(row[1], 10) || 0;
+
+      const playerRounds = rounds.map((round, i) => {
+        const base      = 2 + i * 4;
+        const handicap  = parseInt(row[base]     || '0', 10) || 0;
+        const available = (row[base + 1] || '').trim().toUpperCase() === 'Y';
+        const scoreRaw  = (row[base + 3] || '').trim();
+        const parsed    = parseInt(scoreRaw, 10);
+        const score     = scoreRaw !== '' && !isNaN(parsed) ? parsed : null;
+        const played    = available && score !== null;
+        return { course: round.course, date: round.date, handicap, played, score };
+      });
+
+      players.push({ name, totalScore, rounds: playerRounds });
+    }
+
+    return { rounds, players };
+  }
+
+  // ── Boot ───────────────────────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    loadData();
+  });
+
+  async function loadData() {
+    try {
+      const range  = encodeURIComponent(`${SEASON_TAB}!A1:ZZ`);
+      const url    = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
+      const res    = await fetch(url);
+      if (!res.ok) throw new Error(`Sheets API error: ${res.status} ${res.statusText}`);
+      const json   = await res.json();
+      sheetData    = parseSheetData(json.values || []);
+      document.getElementById('loading').style.display = 'none';
+      renderLeaderboard();
+      showView('leaderboard');
+    } catch (err) {
+      document.getElementById('loading').style.display = 'none';
+      const errEl = document.getElementById('error');
+      errEl.style.display = 'block';
+      errEl.textContent = `Could not load scores: ${err.message}`;
+    }
+  }
+
+  // ── Medal Helpers ─────────────────────────────────────────────────────────
+  function getMedalClass(position) {
+    if (position === 1) return 'row-gold';
+    if (position === 2) return 'row-silver';
+    if (position === 3) return 'row-bronze';
+    return '';
+  }
+
+  function getMedalEmoji(position) {
+    if (position === 1) return '🥇';
+    if (position === 2) return '🥈';
+    if (position === 3) return '🥉';
+    return String(position);
+  }
+
+  // ── Leaderboard Rendering ──────────────────────────────────────────────────
+  function renderLeaderboard() {
+    const el = document.getElementById('view-leaderboard');
+
+    // Filter out players with 0 total score (never played)
+    const played = sheetData.players
+      .filter(p => p.totalScore > 0)
+      .sort((a, b) => b.totalScore - a.totalScore);
+
+    // Assign positions (ties share same position)
+    let position = 1;
+    const ranked = played.map((player, i) => {
+      if (i > 0 && player.totalScore < played[i - 1].totalScore) {
+        position = i + 1;
+      }
+      return { ...player, position };
+    });
+
+    const grid = 'grid-template-columns: 48px 1fr 80px 80px;';
+
+    const rows = ranked.map(({ name, totalScore, rounds, position }) => {
+      const roundsPlayed = rounds.filter(r => r.played).length;
+      const medalClass   = getMedalClass(position);
+      const medal        = getMedalEmoji(position);
+      const isMedal      = position <= 3;
+      const posDisplay   = isMedal
+        ? `<span style="font-size:22px">${medal}</span>`
+        : `<span style="font-weight:700;color:var(--muted);font-size:16px;padding-left:4px">${medal}</span>`;
+
+      return `
+        <div class="table-row ${medalClass}" style="${grid}" data-player="${escHtml(name)}" onclick="openPlayer(this.dataset.player)">
+          ${posDisplay}
+          <span style="font-weight:600">${escHtml(name)}</span>
+          <span class="center" style="color:var(--muted);font-size:13px">${roundsPlayed}</span>
+          <span class="score" style="font-size:17px">${totalScore}</span>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="table-wrap">
+        <div class="table-head" style="${grid}">
+          <span>Pos</span><span>Player</span>
+          <span class="center">Rounds</span><span class="right">Points</span>
+        </div>
+        ${rows || '<div style="padding:20px;text-align:center;color:var(--muted)">No scores yet</div>'}
+      </div>`;
+  }
+
+  // ── Player Profile Rendering ──────────────────────────────────────────────
+  function renderPlayer(name) {
+    const el     = document.getElementById('view-player');
+    const player = sheetData.players.find(p => p.name === name);
+    if (!player) { el.innerHTML = '<p style="padding:20px;color:var(--muted)">Player not found.</p>'; return; }
+
+    const roundsPlayed = player.rounds.filter(r => r.played);
+
+    // Current handicap = handicap from most recent played round
+    const lastPlayed = roundsPlayed[roundsPlayed.length - 1];
+    const handicap   = lastPlayed ? lastPlayed.handicap : '—';
+
+    const grid = 'grid-template-columns: 1fr 100px 80px 70px;';
+
+    const roundRows = player.rounds.map(round => {
+      if (round.played) {
+        return `
+          <div class="table-row no-hover" style="${grid}">
+            <span>${escHtml(round.course)}</span>
+            <span style="color:var(--muted);font-size:13px">${escHtml(round.date)}</span>
+            <span class="center">${round.handicap}</span>
+            <span class="score">${round.score}</span>
+          </div>`;
+      } else {
+        return `
+          <div class="table-row no-hover" style="${grid}">
+            <span>${escHtml(round.course)}</span>
+            <span style="color:var(--muted);font-size:13px">${escHtml(round.date)}</span>
+            <span class="center" style="color:#ccc">—</span>
+            <span class="dns">DNS</span>
+          </div>`;
+      }
+    }).join('');
+
+    el.innerHTML = `
+      <button class="back-btn" onclick="showView('leaderboard')">← Back to Leaderboard</button>
+      <div class="section-title">${escHtml(name)}</div>
+
+      <div class="stat-cards">
+        <div class="stat-card">
+          <div class="value">${player.totalScore}</div>
+          <div class="label">Total Points</div>
+        </div>
+        <div class="stat-card">
+          <div class="value">${handicap}</div>
+          <div class="label">Handicap</div>
+        </div>
+        <div class="stat-card">
+          <div class="value">${roundsPlayed.length}</div>
+          <div class="label">Rounds Played</div>
+        </div>
+      </div>
+
+      <div class="section-title">2026 Rounds</div>
+      <div class="table-wrap">
+        <div class="table-head" style="${grid}">
+          <span>Course</span><span>Date</span>
+          <span class="center">Handicap</span><span class="right">Score</span>
+        </div>
+        ${roundRows}
+      </div>`;
+  }
+
+  // ── Course History Rendering ─────────────────────────────────────────────
+  function renderCourses(roundIndex) {
+    selectedRoundIndex = roundIndex;
+    const el     = document.getElementById('view-courses');
+    const rounds = sheetData.rounds;
+    if (rounds.length === 0) {
+      el.innerHTML = '<p style="color:var(--muted);padding:20px">No rounds played yet.</p>';
+      return;
+    }
+
+    // Pills for each round
+    const pills = rounds.map((round, i) => {
+      const label  = round.course + (round.date ? ` · ${round.date}` : '');
+      const active = i === roundIndex ? 'active' : '';
+      return `<button class="pill ${active}" onclick="renderCourses(${i})">${escHtml(label)}</button>`;
+    }).join('');
+
+    // Scores for selected round, sorted descending (DNS at bottom)
+    const round  = rounds[roundIndex];
+    const scores = sheetData.players
+      .map(p => ({ name: p.name, ...p.rounds[roundIndex] }))
+      .filter(p => p.handicap > 0 || p.played)   // only show players listed for this round
+      .sort((a, b) => {
+        if (a.played && !b.played) return -1;
+        if (!a.played && b.played) return 1;
+        return (b.score || 0) - (a.score || 0);
+      });
+
+    const grid = 'grid-template-columns: 1fr 80px 80px;';
+
+    const scoreRows = scores.map(p => {
+      if (p.played) {
+        return `
+          <div class="table-row no-hover" style="${grid}">
+            <span style="font-weight:500">${escHtml(p.name)}</span>
+            <span class="center">${p.handicap}</span>
+            <span class="score">${p.score}</span>
+          </div>`;
+      } else {
+        return `
+          <div class="table-row no-hover" style="${grid}">
+            <span style="color:var(--muted)">${escHtml(p.name)}</span>
+            <span class="center" style="color:#ccc">${p.handicap || '—'}</span>
+            <span class="dns">DNS</span>
+          </div>`;
+      }
+    }).join('');
+
+    const roundLabel = round.course + (round.date ? ` · ${round.date}` : '');
+
+    el.innerHTML = `
+      <div class="pills">${pills}</div>
+      <div class="section-title">${escHtml(roundLabel)}</div>
+      <div class="table-wrap">
+        <div class="table-head" style="${grid}">
+          <span>Player</span>
+          <span class="center">Handicap</span>
+          <span class="right">Score</span>
+        </div>
+        ${scoreRows || '<div style="padding:20px;text-align:center;color:var(--muted)">No scores recorded</div>'}
+      </div>`;
+  }
+
+  // ── Player Selection ────────────────────────────────────────────────────────
+  function openPlayer(name) {
+    showView('player', name);
+  }
+
+  // ── Navigation ─────────────────────────────────────────────────────────────
+  function showView(name, arg) {
+    currentView = name;
+
+    // Update nav buttons
+    document.querySelectorAll('nav button').forEach((btn, i) => {
+      const views = ['leaderboard', 'courses'];
+      btn.classList.toggle('active', views[i] === name || (name === 'player' && views[i] === 'leaderboard'));
+    });
+
+    // Hide all views
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+
+    // Render and show target view
+    if (name === 'leaderboard') {
+      renderLeaderboard();
+      document.getElementById('view-leaderboard').classList.add('active');
+    } else if (name === 'player') {
+      const playerName = arg || selectedPlayer;
+      renderPlayer(playerName);
+      document.getElementById('view-player').classList.add('active');
+    } else if (name === 'courses') {
+      renderCourses(selectedRoundIndex);
+      document.getElementById('view-courses').classList.add('active');
+    }
+  }
+</script>
+
+</body>
+</html>
