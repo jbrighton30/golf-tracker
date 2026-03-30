@@ -223,12 +223,13 @@
   // CONFIG — replace these before deploying
   const SHEET_ID = '1Xwui2o-_wwfOLsyNdHkbXQ0SvV1z8TChpc94hV6zUnY';
   const API_KEY  = 'AIzaSyCJg1xV8eIIz4jtH4IAcSntJxS6YS_7DGE';
-  const SEASON_TAB = '2026 season';
+  const SEASONS = ['2026', '2025', '2024', '2023'];
 
   // ── State ──────────────────────────────────────────────────────────────────
-  let sheetData = null;   // parsed data (set after fetch)
+  let allSeasonData = {};  // { '2026': {rounds, players}, '2025': ..., ... }
   let currentView = 'leaderboard';
   let selectedPlayer = null;
+  let selectedYear = '2026';
   let selectedRoundIndex = 0;
 
   // ── HTML Escaping Helper ────────────────────────────────────────────────────
@@ -308,12 +309,18 @@
 
   async function loadData() {
     try {
-      const range  = encodeURIComponent(`${SEASON_TAB}!A1:ZZ`);
-      const url    = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
-      const res    = await fetch(url);
-      if (!res.ok) throw new Error(`Sheets API error: ${res.status} ${res.statusText}`);
-      const json   = await res.json();
-      sheetData    = parseSheetData(json.values || []);
+      const fetches = SEASONS.map(year => {
+        const range = encodeURIComponent(`${year} season!A1:ZZ`);
+        const url   = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
+        return fetch(url)
+          .then(res => {
+            if (!res.ok) throw new Error(`Sheets API error: ${res.status} ${res.statusText}`);
+            return res.json();
+          })
+          .then(json => ({ year, data: parseSheetData(json.values || []) }));
+      });
+      const results = await Promise.all(fetches);
+      results.forEach(({ year, data }) => { allSeasonData[year] = data; });
       document.getElementById('loading').style.display = 'none';
       renderLeaderboard();
       showView('leaderboard');
@@ -345,7 +352,7 @@
     const el = document.getElementById('view-leaderboard');
 
     // Filter out players with 0 total score (never played)
-    const played = sheetData.players
+    const played = allSeasonData['2026'].players
       .filter(p => p.totalScore > 0)
       .sort((a, b) => b.totalScore - a.totalScore);
 
@@ -389,10 +396,26 @@
   }
 
   // ── Player Profile Rendering ──────────────────────────────────────────────
-  function renderPlayer(name) {
-    const el     = document.getElementById('view-player');
-    const player = sheetData.players.find(p => p.name === name);
-    if (!player) { el.innerHTML = '<p style="padding:20px;color:var(--muted)">Player not found.</p>'; return; }
+  function renderPlayer(name, year) {
+    year = year || selectedYear;
+    selectedYear = year;
+
+    const el         = document.getElementById('view-player');
+    const seasonData = allSeasonData[year] || { rounds: [], players: [] };
+    const player     = seasonData.players.find(p => p.name === name);
+
+    const yearPills = SEASONS.map(y =>
+      `<button class="pill ${y === year ? 'active' : ''}" onclick="renderPlayer(selectedPlayer, '${y}')">${y}</button>`
+    ).join('');
+
+    if (!player) {
+      el.innerHTML = `
+        <button class="back-btn" onclick="showView('players')">← Back to Players</button>
+        <div class="section-title">${escHtml(name)}</div>
+        <div class="pills" style="margin-top:8px;margin-bottom:16px">${yearPills}</div>
+        <p style="padding:20px;color:var(--muted);text-align:center">No data for ${year}.</p>`;
+      return;
+    }
 
     const roundsPlayed = player.rounds.filter(r => r.played);
 
@@ -425,6 +448,7 @@
     el.innerHTML = `
       <button class="back-btn" onclick="showView('players')">← Back to Players</button>
       <div class="section-title">${escHtml(name)}</div>
+      <div class="pills" style="margin-top:8px;margin-bottom:16px">${yearPills}</div>
 
       <div class="stat-cards">
         <div class="stat-card">
@@ -441,13 +465,13 @@
         </div>
       </div>
 
-      <div class="section-title">2026 Rounds</div>
+      <div class="section-title">${year} Rounds</div>
       <div class="table-wrap">
         <div class="table-head" style="${grid}">
           <span>Course</span><span>Date</span>
           <span class="center">Handicap</span><span class="right">Score</span>
         </div>
-        ${roundRows}
+        ${roundRows || '<div style="padding:20px;text-align:center;color:var(--muted)">No rounds recorded</div>'}
       </div>`;
   }
 
@@ -455,7 +479,7 @@
   function renderCourses(roundIndex) {
     selectedRoundIndex = roundIndex;
     const el     = document.getElementById('view-courses');
-    const rounds = sheetData.rounds;
+    const rounds = allSeasonData['2026'].rounds;
     if (rounds.length === 0) {
       el.innerHTML = '<p style="color:var(--muted);padding:20px">No rounds played yet.</p>';
       return;
@@ -470,7 +494,7 @@
 
     // Scores for selected round — only players who played, sorted by score desc
     const round  = rounds[roundIndex];
-    const scores = sheetData.players
+    const scores = allSeasonData['2026'].players
       .map(p => ({ name: p.name, ...p.rounds[roundIndex] }))
       .filter(p => p.played)
       .sort((a, b) => (b.score || 0) - (a.score || 0));
@@ -504,7 +528,7 @@
     const el = document.getElementById('view-players');
     const grid = 'grid-template-columns: 1fr 80px 80px;';
 
-    const players = sheetData.players
+    const players = allSeasonData['2026'].players
       .filter(p => p.totalScore > 0 || p.rounds.some(r => r.handicap > 0))
       .sort((a, b) => {
         const aRounds = a.rounds.filter(r => r.played).length;
@@ -538,6 +562,7 @@
 
   // ── Player Selection ────────────────────────────────────────────────────────
   function openPlayer(name) {
+    selectedYear = '2026';  // reset to current season when opening a player
     showView('player', name);
   }
 
@@ -564,7 +589,8 @@
       document.getElementById('view-players').classList.add('active');
     } else if (name === 'player') {
       const playerName = arg || selectedPlayer;
-      renderPlayer(playerName);
+      selectedPlayer = playerName;
+      renderPlayer(playerName, selectedYear);
       document.getElementById('view-player').classList.add('active');
     } else if (name === 'courses') {
       renderCourses(selectedRoundIndex);
