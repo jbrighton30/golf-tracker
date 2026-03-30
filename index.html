@@ -313,11 +313,20 @@
         const range = encodeURIComponent(`${year} season!A1:ZZ`);
         const url   = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
         return fetch(url)
-          .then(res => {
-            if (!res.ok) throw new Error(`Sheets API error: ${res.status} ${res.statusText}`);
-            return res.json();
+          .then(res => res.json())
+          .then(json => {
+            if (json.error) {
+              console.warn(`${year} season tab error:`, json.error.message);
+              return { year, data: { rounds: [], players: [] } };
+            }
+            const data = parseSheetData(json.values || []);
+            console.log(`${year}: ${data.players.length} players, ${data.rounds.length} rounds`);
+            return { year, data };
           })
-          .then(json => ({ year, data: parseSheetData(json.values || []) }));
+          .catch(err => {
+            console.warn(`Failed to load ${year} season:`, err.message);
+            return { year, data: { rounds: [], players: [] } };
+          });
       });
       const results = await Promise.all(fetches);
       results.forEach(({ year, data }) => { allSeasonData[year] = data; });
