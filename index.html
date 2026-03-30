@@ -342,6 +342,17 @@ let selectedRoundIndex = 0;
       });
       const results = await Promise.all(fetches);
       results.forEach(({ year, data }) => { allSeasonData[year] = data; });
+
+      // Default Rounds tab to the most recent round with any scores
+      const rounds2026  = allSeasonData['2026'].rounds;
+      const players2026 = allSeasonData['2026'].players;
+      for (let i = rounds2026.length - 1; i >= 0; i--) {
+        if (players2026.some(p => p.rounds[i] && p.rounds[i].played)) {
+          selectedRoundIndex = i;
+          break;
+        }
+      }
+
       document.getElementById('loading').style.display = 'none';
       renderLeaderboard();
       showView('leaderboard');
