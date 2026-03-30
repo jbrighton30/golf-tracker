@@ -230,8 +230,7 @@
   let currentView = 'leaderboard';
   let selectedPlayer = null;
   let selectedYear = '2026';
-  let selectedLeaderboardYear = '2026';
-  let selectedRoundIndex = 0;
+let selectedRoundIndex = 0;
 
   // ── HTML Escaping Helper ────────────────────────────────────────────────────
   function escHtml(str) {
@@ -357,19 +356,11 @@
   }
 
   // ── Leaderboard Rendering ──────────────────────────────────────────────────
-  function renderLeaderboard(year) {
-    year = year || selectedLeaderboardYear;
-    selectedLeaderboardYear = year;
-
-    const el         = document.getElementById('view-leaderboard');
-    const seasonData = allSeasonData[year] || { rounds: [], players: [] };
-
-    const yearPills = SEASONS.map(y =>
-      `<button class="pill ${y === year ? 'active' : ''}" onclick="renderLeaderboard('${y}')">${y}</button>`
-    ).join('');
+  function renderLeaderboard() {
+    const el = document.getElementById('view-leaderboard');
 
     // Filter out players with 0 total score (never played)
-    const played = seasonData.players
+    const played = allSeasonData['2026'].players
       .filter(p => p.totalScore > 0)
       .sort((a, b) => b.totalScore - a.totalScore);
 
@@ -403,7 +394,6 @@
     }).join('');
 
     el.innerHTML = `
-      <div class="pills">${yearPills}</div>
       <div class="table-wrap">
         <div class="table-head" style="${grid}">
           <span>Pos</span><span>Player</span>
