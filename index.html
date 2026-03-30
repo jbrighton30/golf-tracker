@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Golf Tracker</title>
+  <title>Thirsty Boiz</title>
   <style>
     :root {
       --green-dark: #1a3a2a;
@@ -199,13 +199,13 @@
 
 <header>
   <div>
-    <h1>⛳ Golf Tracker</h1>
-    <p>2026 Season</p>
+    <h1>⛳ Thirsty Boiz</h1>
   </div>
 </header>
 
 <nav>
   <button class="active" onclick="showView('leaderboard')">🏆 Leaderboard</button>
+  <button onclick="showView('players')">👤 Players</button>
   <button onclick="showView('courses')">⛳ Courses</button>
 </nav>
 
@@ -214,6 +214,7 @@
   <div id="error" style="display:none"></div>
 
   <div id="view-leaderboard" class="view"></div>
+  <div id="view-players"     class="view"></div>
   <div id="view-player"      class="view"></div>
   <div id="view-courses"     class="view"></div>
 </main>
@@ -422,7 +423,7 @@
     }).join('');
 
     el.innerHTML = `
-      <button class="back-btn" onclick="showView('leaderboard')">← Back to Leaderboard</button>
+      <button class="back-btn" onclick="showView('players')">← Back to Players</button>
       <div class="section-title">${escHtml(name)}</div>
 
       <div class="stat-cards">
@@ -467,36 +468,21 @@
       return `<button class="pill ${active}" onclick="renderCourses(${i})">${escHtml(label)}</button>`;
     }).join('');
 
-    // Scores for selected round, sorted descending (DNS at bottom)
+    // Scores for selected round — only players who played, sorted by score desc
     const round  = rounds[roundIndex];
     const scores = sheetData.players
       .map(p => ({ name: p.name, ...p.rounds[roundIndex] }))
-      .filter(p => p.handicap > 0 || p.played)   // only show players listed for this round
-      .sort((a, b) => {
-        if (a.played && !b.played) return -1;
-        if (!a.played && b.played) return 1;
-        return (b.score || 0) - (a.score || 0);
-      });
+      .filter(p => p.played)
+      .sort((a, b) => (b.score || 0) - (a.score || 0));
 
     const grid = 'grid-template-columns: 1fr 80px 80px;';
 
-    const scoreRows = scores.map(p => {
-      if (p.played) {
-        return `
+    const scoreRows = scores.map(p => `
           <div class="table-row no-hover" style="${grid}">
             <span style="font-weight:500">${escHtml(p.name)}</span>
             <span class="center">${p.handicap}</span>
             <span class="score">${p.score}</span>
-          </div>`;
-      } else {
-        return `
-          <div class="table-row no-hover" style="${grid}">
-            <span style="color:var(--muted)">${escHtml(p.name)}</span>
-            <span class="center" style="color:#ccc">${p.handicap || '—'}</span>
-            <span class="dns">DNS</span>
-          </div>`;
-      }
-    }).join('');
+          </div>`).join('');
 
     const roundLabel = round.course + (round.date ? ` · ${round.date}` : '');
 
@@ -513,6 +499,38 @@
       </div>`;
   }
 
+  // ── Players List Rendering ────────────────────────────────────────────────
+  function renderPlayers() {
+    const el = document.getElementById('view-players');
+    const grid = 'grid-template-columns: 1fr 80px 80px;';
+
+    const players = sheetData.players
+      .filter(p => p.totalScore > 0 || p.rounds.some(r => r.handicap > 0))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    const rows = players.map(p => {
+      const roundsPlayed = p.rounds.filter(r => r.played).length;
+      const lastPlayed   = p.rounds.filter(r => r.played).slice(-1)[0];
+      const handicap     = lastPlayed ? lastPlayed.handicap : '—';
+      return `
+        <div class="table-row" style="${grid}" data-player="${escHtml(p.name)}" onclick="openPlayer(this.dataset.player)">
+          <span style="font-weight:600">${escHtml(p.name)}</span>
+          <span class="center" style="color:var(--muted);font-size:13px">${handicap}</span>
+          <span class="right" style="color:var(--muted);font-size:13px">${roundsPlayed} round${roundsPlayed !== 1 ? 's' : ''}</span>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="table-wrap">
+        <div class="table-head" style="${grid}">
+          <span>Player</span>
+          <span class="center">Handicap</span>
+          <span class="right">Rounds</span>
+        </div>
+        ${rows || '<div style="padding:20px;text-align:center;color:var(--muted)">No players yet</div>'}
+      </div>`;
+  }
+
   // ── Player Selection ────────────────────────────────────────────────────────
   function openPlayer(name) {
     showView('player', name);
@@ -522,10 +540,11 @@
   function showView(name, arg) {
     currentView = name;
 
-    // Update nav buttons
+    // Update nav buttons (leaderboard=0, players=1, courses=2)
+    // Player profile is a sub-view of Players
     document.querySelectorAll('nav button').forEach((btn, i) => {
-      const views = ['leaderboard', 'courses'];
-      btn.classList.toggle('active', views[i] === name || (name === 'player' && views[i] === 'leaderboard'));
+      const views = ['leaderboard', 'players', 'courses'];
+      btn.classList.toggle('active', views[i] === name || (name === 'player' && views[i] === 'players'));
     });
 
     // Hide all views
@@ -535,6 +554,9 @@
     if (name === 'leaderboard') {
       renderLeaderboard();
       document.getElementById('view-leaderboard').classList.add('active');
+    } else if (name === 'players') {
+      renderPlayers();
+      document.getElementById('view-players').classList.add('active');
     } else if (name === 'player') {
       const playerName = arg || selectedPlayer;
       renderPlayer(playerName);
