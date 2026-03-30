@@ -607,12 +607,7 @@ let selectedRoundIndex = 0;
 
     const players = allSeasonData['2026'].players
       .filter(p => p.totalScore > 0 || p.rounds.some(r => r.handicap > 0))
-      .sort((a, b) => {
-        const aRounds = a.rounds.filter(r => r.played).length;
-        const bRounds = b.rounds.filter(r => r.played).length;
-        if (bRounds !== aRounds) return bRounds - aRounds;
-        return a.name.localeCompare(b.name);
-      });
+      .sort((a, b) => a.name.localeCompare(b.name));
 
     const rows = players.map(p => {
       const roundsPlayed = p.rounds.filter(r => r.played).length;
